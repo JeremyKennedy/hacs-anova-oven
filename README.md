@@ -3,7 +3,19 @@
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
+
+Fork of [andr83/hacs-anova-oven](https://github.com/andr83/hacs-anova-oven) (last
+upstream release v0.0.3, 2024-08-26). The fork exists because upstream stopped
+accepting changes and the oven lamp had no control path: it was exposed only as
+`binary_sensor.anova_precision_oven_lamp_on`.
+
+**Added in this fork:** a `switch.anova_precision_oven_lamp` entity. Turning it
+on or off sends `CMD_APO_SET_LAMP` over the same WebSocket connection the cook
+services use. It does not touch the running cook. Entity state comes from the
+oven's own `lamp.on` telemetry, so it follows changes made from the Anova app.
+
+Everything below is upstream's documentation, still accurate for the rest of
+the component.
 
 This integration relies on the reverse engineering of the Anova Precision Oven WebSocket API as implemented in [this](https://github.com/bogd/anova-oven-api/tree/main) project.
 
@@ -20,7 +32,7 @@ Services
     ![Screenshot](images/Service_Start_Cook.png)
 2. Start custom cooking
     ![Screenshot](images/Service_Start_Custom_Cook.png)
-    You can obtain the raw configuration from the “raw_stages” attribute in the “Mode” sensor. 
+    You can obtain the raw configuration from the “raw_stages” attribute in the “Mode” sensor.
     This attribute will contain the raw configuration for the currently running cook.
 3. Stop cooking
     ![Screenshot](images/Service_Stop_Cook.png)
@@ -60,8 +72,8 @@ Detailed instructions how to do it you can find [here](https://github.com/bogd/a
 
 ![Screenshot](images/Configuration.png)
 
-The Entity configuration allows you to choose the unit of temperature: Celsius or Fahrenheit. 
-This will impact the configuration of the “Start cooking” service. 
+The Entity configuration allows you to choose the unit of temperature: Celsius or Fahrenheit.
+This will impact the configuration of the “Start cooking” service.
 If you want to change the display format of sensors, you can do it manually for each sensor as shown in the screenshot:
 
 ![Screenshot](images/ChangeUnitOfTemperature.png)
@@ -72,11 +84,9 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 
 ***
 
-[buymecoffee]: https://www.buymeacoffee.com/andr83
-[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
-[commits-shield]: https://img.shields.io/github/commit-activity/y/andr83/hacs-anova-oven.svg?style=for-the-badge
-[commits]: https://github.com/andr83/hacs-anova-oven/commits/main
-[license-shield]: https://img.shields.io/github/license/andr83/hacs-anova-oven.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/v/release/andr83/hacs-anova-oven.svg?style=for-the-badge
-[releases]: https://github.com/andr83/hacs-anova-oven/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/JeremyKennedy/hacs-anova-oven.svg?style=for-the-badge
+[commits]: https://github.com/JeremyKennedy/hacs-anova-oven/commits/main
+[license-shield]: https://img.shields.io/github/license/JeremyKennedy/hacs-anova-oven.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/v/release/JeremyKennedy/hacs-anova-oven.svg?style=for-the-badge
+[releases]: https://github.com/JeremyKennedy/hacs-anova-oven/releases
 [hacs]: https://hacs.xyz

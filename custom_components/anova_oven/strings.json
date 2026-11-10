@@ -105,6 +105,11 @@
       "water_tank_empty": {
         "name": "Water tank empty"
       }
+    },
+    "switch": {
+      "lamp": {
+        "name": "Lamp"
+      }
     }
   },
   "services": {
