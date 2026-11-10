@@ -31,7 +31,11 @@ from .coordinator import AnovaCoordinator
 from .precision_oven import AnovaPrecisionOven, APOCommand, APOStage
 from .util import to_celsius, to_fahrenheit, dict_keys_to_snake_case
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

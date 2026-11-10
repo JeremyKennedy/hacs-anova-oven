@@ -97,6 +97,11 @@
             "top_watts": {
                 "name": "Top watts"
             }
+        },
+        "switch": {
+            "lamp": {
+                "name": "Lamp"
+            }
         }
     },
     "options": {
