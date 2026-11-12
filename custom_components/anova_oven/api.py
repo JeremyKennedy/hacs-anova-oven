@@ -42,7 +42,7 @@ class AnovaOvenApi:
         self.app_key: str = app_key
         self.access_token: str = access_token
         self.refresh_token: str = refresh_token
-        self._shold_stop = False
+        self._should_stop = False
         self._listeners: list[AnovaOvenUpdateListener] = []
         self._ws: ClientWebSocketResponse | None = None
         self._response_fut: asyncio.Future | None
@@ -52,11 +52,11 @@ class AnovaOvenApi:
         self._listeners.append(listener)
 
     async def run(self):
-        self._shold_stop = False
+        self._should_stop = False
 
         attempt = 0
 
-        while not self._shold_stop:
+        while not self._should_stop:
             url = f"https://devices.anovaculinary.io/?token={self.access_token}&supportedAccessories=APO&platform={PLATFORM}"
             headers = {
                 "Sec-WebSocket-Protocol": "ANOVA_V2",
@@ -67,7 +67,7 @@ class AnovaOvenApi:
                 target: Target = None
                 async for msg in ws:
                     attempt = 0
-                    if self._shold_stop:
+                    if self._should_stop:
                         break
                     try:
                         _LOGGER.debug("Found message %s", msg)
