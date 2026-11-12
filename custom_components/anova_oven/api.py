@@ -270,14 +270,14 @@ class AnovaOvenApi:
             if attempt > 0:
                 raise InvalidAuth("Access Token invalid")
 
-            if not self._shold_stop:
+            if not self._should_stop:
                 await self.renew_token()
                 await asyncio.sleep(1)
             attempt += 1
         self._ws = None
 
     async def stop(self):
-        self._shold_stop = True
+        self._should_stop = True
         if self._ws:
             await self._ws.close()
 
