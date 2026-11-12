@@ -1,7 +1,8 @@
 """Support for Anova Coordinators."""
 
 import logging
-from asyncio import Task, sleep
+from asyncio import CancelledError, Task, sleep
+from contextlib import suppress
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ACCESS_TOKEN
@@ -79,3 +80,12 @@ class AnovaCoordinator(DataUpdateCoordinator[APOState], AnovaOvenUpdateListener)
             "type": "cook_target_reached",
         }
         self.hass.bus.async_fire(EVENT_COOK_TARGET_REACHED, event_data)
+
+    async def async_unload(self) -> None:
+        """Stop the websocket listener and cancel its background task."""
+        await self.api.stop()
+        if self._task:
+            self._task.cancel()
+            with suppress(CancelledError):
+                await self._task
+            self._task = None
