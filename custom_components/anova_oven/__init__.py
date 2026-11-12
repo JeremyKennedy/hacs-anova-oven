@@ -16,7 +16,11 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import aiohttp_client, device_registry
+from homeassistant.helpers import (
+    aiohttp_client,
+    config_validation as cv,
+    device_registry,
+)
 from homeassistant.helpers.typing import ConfigType
 
 from .api import AnovaOvenApi
@@ -30,6 +34,8 @@ from .const import (
 from .coordinator import AnovaCoordinator
 from .precision_oven import AnovaPrecisionOven, APOCommand, APOStage
 from .util import to_celsius, to_fahrenheit, dict_keys_to_snake_case
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,

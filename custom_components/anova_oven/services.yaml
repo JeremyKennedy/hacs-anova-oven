@@ -18,9 +18,6 @@ start_cook:
           max: 250
           unit_of_measurement: "°C"
           mode: slider
-      filter:
-        supported_features:
-          - climate.ClimateEntityFeature.TARGET_TEMPERATURE
     target_temperature_fahrenheit:
       required: false
       selector:
@@ -29,9 +26,6 @@ start_cook:
           max: 482
           unit_of_measurement: "°F"
           mode: slider
-      filter:
-        supported_features:
-          - climate.ClimateEntityFeature.TARGET_HUMIDITY
     heating_top:
       default: false
       selector:
@@ -52,9 +46,6 @@ start_cook:
           max: 250
           unit_of_measurement: "°C"
           mode: slider
-      filter:
-        supported_features:
-          - climate.ClimateEntityFeature.TARGET_TEMPERATURE
     temperature_probe_fahrenheit:
       required: false
       selector:
@@ -63,9 +54,6 @@ start_cook:
           max: 482
           unit_of_measurement: "°F"
           mode: slider
-      filter:
-        supported_features:
-          - climate.ClimateEntityFeature.TARGET_HUMIDITY
     target_humidity:
       required: false
       selector:
