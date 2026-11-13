@@ -12,7 +12,10 @@ from homeassistant.const import (
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.anova_oven.const import (
+    AUTH_METHOD_APP,
+    AUTH_METHOD_PAT,
     CONF_APP_KEY,
+    CONF_AUTH_METHOD,
     CONF_REFRESH_TOKEN,
     DOMAIN,
     AnovaUnitOfTemperature,
@@ -25,16 +28,23 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
-def _config_entry(cooker_id: str, oven_type: str) -> MockConfigEntry:
+def _config_entry(
+    cooker_id: str, oven_type: str, auth_method: str = AUTH_METHOD_APP
+) -> MockConfigEntry:
+    data = {
+        CONF_AUTH_METHOD: auth_method,
+        CONF_ACCESS_TOKEN: "anova-token"
+        if auth_method == AUTH_METHOD_PAT
+        else "access-token",
+        CONF_DEVICES: [(cooker_id, oven_type)],
+    }
+    if auth_method == AUTH_METHOD_APP:
+        data[CONF_APP_KEY] = "app-key"
+        data[CONF_REFRESH_TOKEN] = "refresh-token"
     return MockConfigEntry(
         domain=DOMAIN,
         title="Anova Oven",
-        data={
-            CONF_APP_KEY: "app-key",
-            CONF_ACCESS_TOKEN: "access-token",
-            CONF_REFRESH_TOKEN: "refresh-token",
-            CONF_DEVICES: [(cooker_id, oven_type)],
-        },
+        data=data,
         options={
             CONF_TEMPERATURE_UNIT: AnovaUnitOfTemperature.FAHRENHEIT.value,
         },
@@ -42,18 +52,23 @@ def _config_entry(cooker_id: str, oven_type: str) -> MockConfigEntry:
     )
 
 
-def _fake_api() -> MagicMock:
+def _fake_api(auth_method: str = AUTH_METHOD_APP) -> MagicMock:
     api = MagicMock()
     api.run = AsyncMock()
     api.stop = AsyncMock()
     api.unit_of_temperature = AnovaUnitOfTemperature.FAHRENHEIT
+    api.auth_method = auth_method
     return api
 
 
 async def _setup(hass, entry):
     entry.add_to_hass(hass)
+    auth_method = entry.data.get(CONF_AUTH_METHOD, AUTH_METHOD_APP)
     with (
-        patch("custom_components.anova_oven.AnovaOvenApi", return_value=_fake_api()),
+        patch(
+            "custom_components.anova_oven.AnovaOvenApi",
+            return_value=_fake_api(auth_method),
+        ),
         patch(
             "custom_components.anova_oven.coordinator.sleep",
             new=AsyncMock(),
@@ -108,3 +123,16 @@ async def test_v2_entities_register(hass):
         == "unavailable"
     )
     assert DOMAIN not in hass.data or entry.entry_id not in hass.data[DOMAIN]
+
+
+async def test_pat_hides_lamp_switch(hass):
+    entry = _config_entry("01234pat", "oven_v1", auth_method=AUTH_METHOD_PAT)
+    await _setup(hass, entry)
+
+    entities = hass.states.async_entity_ids()
+    assert "sensor.anova_precision_oven_temperature" in entities
+    assert "binary_sensor.anova_precision_oven_exhaust_vent_open" in entities
+    assert "switch.anova_precision_oven_lamp" not in entities
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

@@ -97,7 +97,8 @@ probe 1–100 °C. Timer values in seconds; all IDs UUID v4.
   `oven_v2`) and builds the matching stage shape. State payload differences for v2 are
   `doorLamp` instead of `lamp`, enum `fan.speed` instead of 0–100, celsius-only
   temperature values, and `usageHours` on the heating elements and steam generators.
-- Whether a PAT is enough for the desired control (start/stop/unit only) or a Firebase ID token is
-  needed for the full command set.
+- The integration supports both auth methods: app credentials for the full command
+  set, personal access tokens for start/stop/unit only. PAT entries omit the lamp
+  switch.
 - The 30-minute inactivity timeout and rate limiting mean any integration must keep the socket warm
   or reconnect on demand.

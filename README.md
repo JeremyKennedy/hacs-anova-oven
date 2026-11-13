@@ -93,6 +93,20 @@ setpoint but no measured relative humidity. The relative humidity sensor is
 therefore unknown in that mode, while the target humidity sensor carries the
 requested percentage. In `relative-humidity` mode both values are reported.
 
+## Authentication
+
+The integration offers two ways to connect:
+
+- **Anova account (full control)** — the app key, access token and refresh token
+  from the Anova app. This reaches every command, including the lamp switch.
+- **Personal access token (start/stop only)** — create one in the Anova app under
+  More → Developer → Personal Access Tokens. Anova limits these tokens to
+  `CMD_APO_START`, `CMD_APO_STOP` and `CMD_APO_SET_TEMPERATURE_UNIT`, so the lamp
+  switch is not created and the other setters are unavailable. Read-only sensors
+  work as usual.
+
+Existing entries keep working; they are treated as Anova account entries.
+
 ## Configuration is done in the UI
 
 Before do configuration you will need to get access tokens for Anova api.
