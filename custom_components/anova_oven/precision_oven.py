@@ -1,20 +1,13 @@
 import logging
 from dataclasses import dataclass
-from typing import Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 _LOGGER = logging.getLogger(__name__)
 
-
-MODE_MAP = {"IDLE": "Idle", "COOK": "Cook", "LOW WATER": "Low water"}
-
-STATE_MAP = {
-    "PREHEATING": "Preheating",
-    "COOKING": "Cooking",
-    "MAINTAINING": "Maintaining",
-    "": "No state",
-}
-
 P = TypeVar("P")
+
+OVEN_V1 = "oven_v1"
+OVEN_V2 = "oven_v2"
 
 
 @dataclass
@@ -32,24 +25,30 @@ class APOSensor:
             mode: str
             dosed: bool
             dose_failed: bool
-            temperature: Temperature
-            target_temperature: Temperature
+            temperature: Temperature | None
+            target_temperature: Temperature | None
 
         @dataclass
         class TemperatureProbe:
-            temperature: Temperature
-            target_temperature: Temperature
+            temperature: Temperature | None
+            target_temperature: Temperature | None
 
         @dataclass
         class HeatingElement:
             watts: int
             on: bool
+            usage_hours: float = 0
 
         @dataclass
         class SteamGenerator:
             mode: str
-            relative_humidity: int
-            target_humidity: int
+            relative_humidity: int | None
+            target_humidity: int | None
+
+        @dataclass
+        class SteamGeneratorType:
+            watts: int = 0
+            usage_hours: float = 0
 
         @dataclass
         class Cook:
@@ -64,7 +63,7 @@ class APOSensor:
         cook: Cook
         timer: Timer | None
         temperature_bulbs: TemperatureBulbs
-        temperature_probe: TemperatureProbe
+        temperature_probe: TemperatureProbe | None
         steam_generator: SteamGenerator
         rear_heating: HeatingElement
         bottom_heating: HeatingElement
@@ -73,7 +72,9 @@ class APOSensor:
         lamp_on: bool
         door_closed: bool
         water_tank_empty: bool
-        fan_speed: int
+        fan_speed: int | str
+        evaporator: SteamGeneratorType | None = None
+        boiler: SteamGeneratorType | None = None
 
     mode: str
     firmware_version: str
@@ -123,6 +124,8 @@ class TimerTarget(Target):
 
 
 class AnovaPrecisionOven:
+    raw_data: Any
+
     def __init__(self, cooker_id: str, type: str) -> None:
         self.cooker_id = cooker_id
         self.type = type
@@ -132,6 +135,8 @@ class AnovaPrecisionOven:
 
 @dataclass
 class APOStage:
+    """A first generation oven cook stage."""
+
     @dataclass
     class TemperatureSetpoint:
         fahrenheit: int
@@ -202,6 +207,85 @@ class APOStage:
 
 
 @dataclass
+class APOStageV2:
+    """A second generation oven cook stage.
+
+    V2 stages carry the actions in ``do`` and gate them with ``entry``/``exit``
+    conditions instead of the flat preheat/cook stages used by the V1 oven.
+    """
+
+    @dataclass
+    class TemperatureSetpoint:
+        celsius: float
+
+    @dataclass
+    class TemperatureBulb:
+        setpoint: "APOStageV2.TemperatureSetpoint"
+
+    @dataclass
+    class TemperatureBulbs:
+        mode: str
+        dry: Optional["APOStageV2.TemperatureBulb"] = None
+        wet: Optional["APOStageV2.TemperatureBulb"] = None
+
+    @dataclass
+    class On:
+        on: bool
+
+    @dataclass
+    class HeatingElements:
+        bottom: "APOStageV2.On"
+        top: "APOStageV2.On"
+        rear: "APOStageV2.On"
+
+    @dataclass(frozen=True)
+    class Fan:
+        speed: int
+
+    @dataclass(frozen=True)
+    class Vent:
+        state: str
+
+    @dataclass(frozen=True)
+    class Timer:
+        initial: int
+        entry: dict | None = None
+
+    @dataclass(frozen=True)
+    class Probe:
+        setpoint: Optional["APOStageV2.TemperatureSetpoint"] = None
+
+    @dataclass(frozen=True)
+    class SteamGenerators:
+        @dataclass(frozen=True)
+        class Setpoint:
+            setpoint: int
+
+        mode: str
+        relative_humidity: Setpoint
+        steam_percentage: Setpoint
+
+    @dataclass(frozen=True)
+    class Action:
+        type: str
+        fan: "APOStageV2.Fan"
+        heating_elements: "APOStageV2.HeatingElements"
+        exhaust_vent: "APOStageV2.Vent"
+        temperature_bulbs: "APOStageV2.TemperatureBulbs"
+        timer: Optional["APOStageV2.Timer"] = None
+        steam_generators: Optional["APOStageV2.SteamGenerators"] = None
+        temperature_probe: Optional["APOStageV2.Probe"] = None
+
+    id: str
+    do: Action
+    title: str
+    description: str = ""
+    entry: dict | None = None
+    exit: dict | None = None
+    rack_position: int = 3
+
+
+@dataclass
 class APOCommand(Generic[P]):
     @dataclass
     class Payload(Generic[P]):
@@ -213,6 +297,16 @@ class APOCommand(Generic[P]):
     class APOStartPayload:
         cook_id: str
         stages: list[APOStage]
+
+    @dataclass
+    class APOStartPayloadV2:
+        cook_id: str
+        cooker_id: str
+        type: str
+        cookable_type: str
+        origin_source: str
+        title: str
+        stages: list[APOStageV2]
 
     command: str
     request_id: str

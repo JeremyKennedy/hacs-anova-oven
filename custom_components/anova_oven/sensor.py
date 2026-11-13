@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from homeassistant import config_entries
-from homeassistant.components.climate.const import ClimateEntityFeature
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -26,15 +25,15 @@ from homeassistant.helpers.typing import StateType
 from .const import DOMAIN, AnovaUnitOfTemperature
 from .coordinator import AnovaCoordinator
 from .entity import AnovaOvenDescriptionEntity
-from .precision_oven import APOSensor
+from .precision_oven import OVEN_V1, OVEN_V2, APOState
 
 
 @dataclass(frozen=True)
 class AnovaOvenSensorEntityDescriptionMixin:
     """Describes the mixin variables for anova sensors."""
 
-    value_fn: Callable[[APOSensor], float | int | str]
-    extra_state_attributes: dict[str, Callable[[APOSensor], float | int | str]] = field(
+    value_fn: Callable[[APOState], float | int | str]
+    extra_state_attributes: dict[str, Callable[[APOState], float | int | str]] = field(
         default_factory=dict
     )
 
@@ -46,17 +45,52 @@ class AnovaOvenSensorEntityDescription(
     """Describes a Anova sensor."""
 
 
+V2_ONLY_KEYS = {
+    "top_usage_hours",
+    "rear_usage_hours",
+    "bottom_usage_hours",
+    "evaporator_usage_hours",
+    "boiler_usage_hours",
+}
+
+
+def description_supported(
+    description: AnovaOvenSensorEntityDescription, oven_type: str
+) -> bool:
+    """Return whether a description applies to the oven generation."""
+    if description.device_class == SensorDeviceClass.ENUM:
+        return oven_type == OVEN_V2
+    if description.device_class == SensorDeviceClass.POWER_FACTOR:
+        return oven_type == OVEN_V1
+    if description.key in V2_ONLY_KEYS:
+        return oven_type == OVEN_V2
+    return True
+
+
 def sensor_descriptions(
     unit_of_temperature: AnovaUnitOfTemperature,
-) -> list[SensorEntityDescription]:  # noqa: D103
+) -> list[AnovaOvenSensorEntityDescription]:  # noqa: D103
     def temp_getter(x):
-        return x.celsius
-
-    match unit_of_temperature:
-        case AnovaUnitOfTemperature.FAHRENHEIT:
-
-            def temp_getter(x):
+        match unit_of_temperature:
+            case AnovaUnitOfTemperature.FAHRENHEIT:
                 return x.fahrenheit
+            case _:
+                return x.celsius
+
+    def probe_temperature(data: APOState):
+        probe = data.sensor.nodes.temperature_probe
+        return temp_getter(probe.temperature) if probe and probe.temperature else None
+
+    def probe_target(data: APOState):
+        probe = data.sensor.nodes.temperature_probe
+        return (
+            temp_getter(probe.target_temperature)
+            if probe and probe.target_temperature
+            else None
+        )
+
+    def usage_hours(element):
+        return getattr(element, "usage_hours", 0)
 
     return [
         AnovaOvenSensorEntityDescription(
@@ -65,11 +99,6 @@ def sensor_descriptions(
             value_fn=lambda data: data.sensor.mode,
             extra_state_attributes={"raw_stages": lambda s: s.raw_stages},
         ),
-        # AnovaOvenSensorEntityDescription(
-        #     key="bulb_mode",
-        #     translation_key="bulb_mode",
-        #     value_fn=lambda data: data.sensor.nodes.temperature_bulbs.mode
-        # ),
         AnovaOvenSensorEntityDescription(
             key="temperature",
             translation_key="temperature",
@@ -78,7 +107,9 @@ def sensor_descriptions(
             state_class=SensorStateClass.MEASUREMENT,
             value_fn=lambda data: temp_getter(
                 data.sensor.nodes.temperature_bulbs.temperature
-            ),
+            )
+            if data.sensor.nodes.temperature_bulbs.temperature
+            else None,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -89,7 +120,9 @@ def sensor_descriptions(
             state_class=SensorStateClass.MEASUREMENT,
             value_fn=lambda data: temp_getter(
                 data.sensor.nodes.temperature_bulbs.target_temperature
-            ),
+            )
+            if data.sensor.nodes.temperature_bulbs.target_temperature
+            else None,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -98,12 +131,7 @@ def sensor_descriptions(
             native_unit_of_measurement=unit_of_temperature,
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
-            value_fn=lambda data: temp_getter(
-                data.sensor.nodes.temperature_probe.temperature
-            )
-            if data.sensor.nodes.temperature_probe
-            and data.sensor.nodes.temperature_probe.temperature
-            else None,
+            value_fn=probe_temperature,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -112,12 +140,7 @@ def sensor_descriptions(
             native_unit_of_measurement=unit_of_temperature,
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
-            value_fn=lambda data: temp_getter(
-                data.sensor.nodes.temperature_probe.target_temperature
-            )
-            if data.sensor.nodes.temperature_probe
-            and data.sensor.nodes.temperature_probe.target_temperature
-            else None,
+            value_fn=probe_target,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -148,10 +171,94 @@ def sensor_descriptions(
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
+            key="evaporator_watts",
+            device_class=SensorDeviceClass.POWER,
+            native_unit_of_measurement=UnitOfPower.WATT,
+            state_class=SensorStateClass.MEASUREMENT,
+            translation_key="evaporator_watts",
+            value_fn=lambda data: data.sensor.nodes.evaporator.watts
+            if data.sensor.nodes.evaporator
+            else None,
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="boiler_watts",
+            device_class=SensorDeviceClass.POWER,
+            native_unit_of_measurement=UnitOfPower.WATT,
+            state_class=SensorStateClass.MEASUREMENT,
+            translation_key="boiler_watts",
+            value_fn=lambda data: data.sensor.nodes.boiler.watts
+            if data.sensor.nodes.boiler
+            else None,
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="top_usage_hours",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            icon="mdi:clock-outline",
+            translation_key="top_usage_hours",
+            device_class=SensorDeviceClass.DURATION,
+            value_fn=lambda data: usage_hours(data.sensor.nodes.top_heating),
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="rear_usage_hours",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            icon="mdi:clock-outline",
+            translation_key="rear_usage_hours",
+            device_class=SensorDeviceClass.DURATION,
+            value_fn=lambda data: usage_hours(data.sensor.nodes.rear_heating),
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="bottom_usage_hours",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            icon="mdi:clock-outline",
+            translation_key="bottom_usage_hours",
+            device_class=SensorDeviceClass.DURATION,
+            value_fn=lambda data: usage_hours(data.sensor.nodes.bottom_heating),
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="evaporator_usage_hours",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            icon="mdi:clock-outline",
+            translation_key="evaporator_usage_hours",
+            device_class=SensorDeviceClass.DURATION,
+            value_fn=lambda data: usage_hours(data.sensor.nodes.evaporator)
+            if data.sensor.nodes.evaporator
+            else None,
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="boiler_usage_hours",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            icon="mdi:clock-outline",
+            translation_key="boiler_usage_hours",
+            device_class=SensorDeviceClass.DURATION,
+            value_fn=lambda data: usage_hours(data.sensor.nodes.boiler)
+            if data.sensor.nodes.boiler
+            else None,
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
             key="fan_speed",
             device_class=SensorDeviceClass.POWER_FACTOR,
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
+            translation_key="fan_speed",
+            value_fn=lambda data: data.sensor.nodes.fan_speed,
+            extra_state_attributes={},
+        ),
+        AnovaOvenSensorEntityDescription(
+            key="fan_speed",
+            device_class=SensorDeviceClass.ENUM,
+            options=["off", "min", "mid", "max"],
             translation_key="fan_speed",
             value_fn=lambda data: data.sensor.nodes.fan_speed,
             extra_state_attributes={},
@@ -197,7 +304,9 @@ def sensor_descriptions(
             icon="mdi:clock-outline",
             translation_key="timer",
             device_class=SensorDeviceClass.DURATION,
-            value_fn=lambda data: data.sensor.nodes.timer.current,
+            value_fn=lambda data: data.sensor.nodes.timer.current
+            if data.sensor.nodes.timer
+            else None,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -207,13 +316,17 @@ def sensor_descriptions(
             icon="mdi:clock-outline",
             translation_key="timer_initial",
             device_class=SensorDeviceClass.DURATION,
-            value_fn=lambda data: data.sensor.nodes.timer.initial,
+            value_fn=lambda data: data.sensor.nodes.timer.initial
+            if data.sensor.nodes.timer
+            else None,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
             key="timer_mode",
             translation_key="timer_mode",
-            value_fn=lambda data: data.sensor.nodes.timer.mode,
+            value_fn=lambda data: data.sensor.nodes.timer.mode
+            if data.sensor.nodes.timer
+            else None,
             extra_state_attributes={},
         ),
         AnovaOvenSensorEntityDescription(
@@ -247,6 +360,7 @@ async def async_setup_entry(
         AnovaOvenSensor(device[0], coordinator, description)
         for device in coordinator.devices.items()
         for description in sensor_descriptions(unit_of_temperature)
+        if description_supported(description, device[1].type or OVEN_V1)
     )
 
 
@@ -254,14 +368,6 @@ class AnovaOvenSensor(AnovaOvenDescriptionEntity, SensorEntity):
     """A sensor using Anova coordinator."""
 
     entity_description: AnovaOvenSensorEntityDescription
-
-    @property
-    def supported_features(self):
-        match self.native_unit_of_measurement:
-            case AnovaUnitOfTemperature.CELSIUS:
-                return ClimateEntityFeature.TARGET_TEMPERATURE
-            case AnovaUnitOfTemperature.FAHRENHEIT:
-                return ClimateEntityFeature.TARGET_HUMIDITY
 
     @property
     def native_value(self) -> StateType:

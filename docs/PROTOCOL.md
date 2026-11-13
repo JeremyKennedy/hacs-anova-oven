@@ -93,7 +93,10 @@ probe 1–100 °C. Timer values in seconds; all IDs UUID v4.
 
 ## Open questions
 
-- Which oven generation is in play (`oven_v1` vs `oven_v2`) — it changes the stage payload shape.
+- Oven generation detection: the integration keys off `payload.type` (`oven_v1` /
+  `oven_v2`) and builds the matching stage shape. State payload differences for v2 are
+  `doorLamp` instead of `lamp`, enum `fan.speed` instead of 0–100, celsius-only
+  temperature values, and `usageHours` on the heating elements and steam generators.
 - Whether a PAT is enough for the desired control (start/stop/unit only) or a Firebase ID token is
   needed for the full command set.
 - The 30-minute inactivity timeout and rate limiting mean any integration must keep the socket warm
