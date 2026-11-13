@@ -36,10 +36,22 @@ class CookParameters:
     timer_seconds: int | None = None
     timer_mode: str | None = None
     title: str = ""
+    fan_speed: int = 100
 
 
 def _cook_id() -> str:
     return f"{PLATFORM}-{uuid.uuid4()}"
+
+
+def _v2_fan_speed(speed: int) -> str:
+    """Map a 0-100 fan percentage to the V2 fan enum."""
+    if speed <= 0:
+        return "off"
+    if speed <= 33:
+        return "min"
+    if speed <= 66:
+        return "mid"
+    return "max"
 
 
 def build_v1_stages(parameters: CookParameters) -> list[APOStage]:
@@ -81,7 +93,7 @@ def build_v1_stages(parameters: CookParameters) -> list[APOStage]:
             top=APOStage.On(on=parameters.heating_top),
             rear=APOStage.On(on=parameters.heating_rear),
         ),
-        fan=APOStage.Fan(speed=100),
+        fan=APOStage.Fan(speed=parameters.fan_speed),
         vent=APOStage.Vent(open=False),
         rack_position=3,
         steam_generators=APOStage.SteamGenerators(
@@ -181,7 +193,7 @@ def build_v2_stages(parameters: CookParameters) -> list[APOStageV2]:
 
     action = APOStageV2.Action(
         type="cook",
-        fan=APOStageV2.Fan(speed=100),
+        fan=APOStageV2.Fan(speed=_v2_fan_speed(parameters.fan_speed)),
         heating_elements=APOStageV2.HeatingElements(
             bottom=APOStageV2.On(on=parameters.heating_bottom),
             top=APOStageV2.On(on=parameters.heating_top),

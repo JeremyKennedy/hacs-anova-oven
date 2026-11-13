@@ -242,7 +242,7 @@ class APOStageV2:
 
     @dataclass(frozen=True)
     class Fan:
-        speed: int
+        speed: int | str
 
     @dataclass(frozen=True)
     class Vent:
