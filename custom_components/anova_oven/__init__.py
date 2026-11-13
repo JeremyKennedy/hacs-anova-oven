@@ -107,13 +107,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         api: AnovaOvenApi | None = None
         dr = device_registry.async_get(hass)
         if device := dr.async_get(device_id):
-            for ce_key in device.config_entries:
-                if ce := hass.data[DOMAIN].get(ce_key):
-                    api: AnovaOvenApi = ce.api
-                    for k, v in device.identifiers:
-                        if k == DOMAIN:
-                            cook_id = v
-                            break
+            if ce := hass.data[DOMAIN].get(device.config_entry_id):
+                api: AnovaOvenApi = ce.api
+                for k, v in device.identifiers:
+                    if k == DOMAIN:
+                        cook_id = v
+                        break
         if not api or not device_id:
             raise ConfigEntryNotReady("Device is not found or doesn't ready.")
         return cook_id, api
