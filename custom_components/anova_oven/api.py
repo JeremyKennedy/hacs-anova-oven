@@ -3,6 +3,7 @@ import json
 import logging
 import time
 from abc import ABC
+from contextlib import suppress
 
 import aiohttp
 from aiohttp.client_ws import ClientWebSocketResponse
@@ -42,6 +43,7 @@ class AnovaOvenApi:
         self.access_token: str = access_token
         self.refresh_token: str = refresh_token
         self._should_stop = False
+        self._stop_event = asyncio.Event()
         self._listeners: list[AnovaOvenUpdateListener] = []
         self._ws: ClientWebSocketResponse | None = None
         self._response_fut: asyncio.Future | None
@@ -52,6 +54,7 @@ class AnovaOvenApi:
 
     async def run(self):
         self._should_stop = False
+        self._stop_event.clear()
 
         attempt = 0
 
@@ -61,7 +64,23 @@ class AnovaOvenApi:
                 "Sec-WebSocket-Protocol": "ANOVA_V2",
                 "Sec-WebSocket-Version": "13",
             }
-            async with self.session.ws_connect(url, headers=headers) as ws:
+            try:
+                ws = await self.session.ws_connect(url, headers=headers)
+            except aiohttp.WSServerHandshakeError as err:
+                if err.status in (401, 403):
+                    await self.renew_token()
+                else:
+                    _LOGGER.warning("Websocket handshake failed: %s", err)
+                    await self._sleep_backoff(attempt)
+                attempt += 1
+                continue
+            except aiohttp.ClientError as err:
+                _LOGGER.warning("Websocket connection failed: %s", err)
+                await self._sleep_backoff(attempt)
+                attempt += 1
+                continue
+
+            try:
                 self._ws = ws
                 target: Target = None
                 async for msg in ws:
@@ -151,18 +170,31 @@ class AnovaOvenApi:
                         _LOGGER.exception("Failed processing message: %s", err)
                         self._ws = None
                         raise err
-            _LOGGER.info("WS stream closed.")
-            if attempt > 0 and not self._should_stop:
-                raise InvalidAuth("Access Token invalid")
+            finally:
+                self._ws = None
+                await ws.close()
 
-            if not self._should_stop:
-                await self.renew_token()
-                await asyncio.sleep(1)
+            _LOGGER.info("WS stream closed.")
+            if self._should_stop:
+                break
+            await self._sleep_backoff(attempt)
             attempt += 1
         self._ws = None
 
+    @staticmethod
+    def _backoff_delay(attempt: int) -> float:
+        """Return the reconnect delay, capped at one minute."""
+        return min(2 ** min(attempt, 5), 60)
+
+    async def _sleep_backoff(self, attempt: int) -> None:
+        """Wait before reconnecting, waking early when stop is requested."""
+        delay = self._backoff_delay(attempt)
+        with suppress(TimeoutError):
+            await asyncio.wait_for(self._stop_event.wait(), timeout=delay)
+
     async def stop(self):
         self._should_stop = True
+        self._stop_event.set()
         if self._ws:
             await self._ws.close()
 

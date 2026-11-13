@@ -80,6 +80,8 @@ V2_PAYLOAD = {
                     "bottom": {"watts": 0, "on": False, "usageHours": 1.2},
                 },
                 "exhaustFan": {"speed": "off"},
+                "exhaustVent": {"state": "closed"},
+                "wasteWaterTank": {"full": False, "removed": False},
                 "doorLamp": {"preferences": "on", "on": False},
                 "timer": {"mode": "idle"},
                 "fan": {"failed": False, "speed": "max"},
@@ -108,6 +110,7 @@ def test_parse_v1_state():
     assert nodes.temperature_bulbs.target_temperature.fahrenheit == 137
     assert nodes.steam_generator.relative_humidity == 55
     assert nodes.evaporator.watts == 0
+    assert nodes.vent_open is True
 
 
 def test_parse_v2_state():
@@ -121,6 +124,8 @@ def test_parse_v2_state():
     assert nodes.rear_heating.usage_hours == 38.1
     assert nodes.evaporator.usage_hours == 0.4
     assert nodes.temperature_probe.temperature.celsius == 0
+    assert nodes.vent_open is False
+    assert nodes.waste_water_full is False
     # V2 only reports celsius; fahrenheit is derived.
     assert nodes.temperature_bulbs.temperature.fahrenheit == 62.942
 

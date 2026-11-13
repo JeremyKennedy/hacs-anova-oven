@@ -37,6 +37,12 @@
             },
             "water_tank_empty": {
                 "name": "Water tank empty"
+            },
+            "exhaust_vent_open": {
+                "name": "Exhaust vent open"
+            },
+            "waste_water_tank_full": {
+                "name": "Waste water tank full"
             }
         },
         "sensor": {

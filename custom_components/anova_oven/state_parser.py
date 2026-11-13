@@ -133,6 +133,7 @@ def _parse_v1(payload: dict) -> ParsedState:
                 door_closed=(nodes.get("door") or {}).get("closed", True),
                 water_tank_empty=(nodes.get("waterTank") or {}).get("empty", False),
                 fan_speed=(nodes.get("fan") or {}).get("speed", 0),
+                vent_open=(nodes.get("vent") or {}).get("open"),
             ),
         ),
         stages=APOState.Stages(active=active_stage, count=stage_count),
@@ -219,6 +220,10 @@ def _parse_v2(payload: dict) -> ParsedState:
                 door_closed=(nodes.get("door") or {}).get("closed", True),
                 water_tank_empty=(nodes.get("waterTank") or {}).get("empty", False),
                 fan_speed=(nodes.get("fan") or {}).get("speed", "off"),
+                vent_open=(nodes["exhaustVent"]["state"] == "open")
+                if nodes.get("exhaustVent")
+                else None,
+                waste_water_full=(nodes.get("wasteWaterTank") or {}).get("full"),
             ),
         ),
         stages=APOState.Stages(active=active_stage, count=stage_count),
