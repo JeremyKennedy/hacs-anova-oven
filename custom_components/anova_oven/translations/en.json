@@ -96,6 +96,27 @@
             },
             "top_watts": {
                 "name": "Top watts"
+            },
+            "evaporator_watts": {
+                "name": "Evaporator watts"
+            },
+            "boiler_watts": {
+                "name": "Boiler watts"
+            },
+            "top_usage_hours": {
+                "name": "Top usage hours"
+            },
+            "rear_usage_hours": {
+                "name": "Rear usage hours"
+            },
+            "bottom_usage_hours": {
+                "name": "Bottom usage hours"
+            },
+            "evaporator_usage_hours": {
+                "name": "Evaporator usage hours"
+            },
+            "boiler_usage_hours": {
+                "name": "Boiler usage hours"
             }
         },
         "switch": {
@@ -168,6 +189,10 @@
                 "timer_mode": {
                     "description": "When cooking timer starts.",
                     "name": "Timer starts"
+                },
+                "title": {
+                    "name": "Title",
+                    "description": "Title of the cook stage."
                 }
             },
             "name": "Start cooking"

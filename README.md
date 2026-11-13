@@ -9,10 +9,16 @@ upstream release v0.0.3, 2024-08-26). The fork exists because upstream stopped
 accepting changes and the oven lamp had no control path: it was exposed only as
 `binary_sensor.anova_precision_oven_lamp_on`.
 
-**Added in this fork:** a `switch.anova_precision_oven_lamp` entity. Turning it
-on or off sends `CMD_APO_SET_LAMP` over the same WebSocket connection the cook
-services use. It does not touch the running cook. Entity state comes from the
-oven's own `lamp.on` telemetry, so it follows changes made from the Anova app.
+**Added in this fork:**
+
+- A `switch.anova_precision_oven_lamp` entity. Turning it on or off sends
+  `CMD_APO_SET_LAMP` over the same WebSocket connection the cook services use.
+  It does not touch the running cook. Entity state comes from the oven's own
+  lamp telemetry, so it follows changes made from the Anova app.
+- Support for the second generation oven (`oven_v2`) alongside the first
+  generation (`oven_v1`). The integration detects the oven generation from the
+  device list and state payloads and builds the matching cook command, so the
+  same release works for both models. See [Oven generations](#oven-generations).
 
 Everything below is upstream's documentation, still accurate for the rest of
 the component.
@@ -63,6 +69,22 @@ Events
 5. Place the files you downloaded in the new directory (folder) you created.
 6. Restart Home Assistant
 7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Anova Precision Oven"
+
+## Oven generations
+
+The integration supports both Anova Precision Oven generations:
+
+- `oven_v1` — the original oven. Cook commands use the flat preheat/cook stage
+  shape.
+- `oven_v2` — the newer oven. Cook commands use the conditional
+  `do`/`entry`/`exit` stage shape and add usage-hour, boiler and evaporator
+  sensors. The timer modes `When Food Detected` and `When Food Removed` are
+  available for these ovens.
+
+Generation support is detected automatically; there is no setting to choose.
+A V2 oven only reports temperatures in Celsius, so the Fahrenheit values are
+derived. `start_custom_cook` accepts the stage array exactly as reported in the
+`raw_stages` attribute of the mode sensor for the oven that produced it.
 
 ## Configuration is done in the UI
 

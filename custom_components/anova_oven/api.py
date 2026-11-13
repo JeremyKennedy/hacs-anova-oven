@@ -12,14 +12,13 @@ from .exceptions import CommandError, InvalidAuth, NoDevicesFound
 from .precision_oven import (
     AnovaPrecisionOven,
     APOCommand,
-    APOSensor,
     APOState,
     ProbeTarget,
     Target,
-    Temperature,
     TimerTarget,
 )
-from .util import dict_keys_to_camel_case, snake_case_to_camel_case, to_dict
+from .state_parser import apply_state, parse_event_state
+from .util import dict_keys_to_camel_case, to_dict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,133 +75,18 @@ class AnovaOvenApi:
                                 data = json.loads(msg.data)
                                 match data.get("command"):
                                     case "EVENT_APO_STATE":
-                                        payload = data["payload"]
-                                        state = payload["state"]
-                                        nodes = state["nodes"]
-                                        bulbs = nodes["temperatureBulbs"]
-                                        he = nodes["heatingElements"]
-                                        sg = nodes["steamGenerators"]
-                                        hum = (
-                                            sg["relativeHumidity"]
-                                            if sg["mode"] == "idle"
-                                            else sg[
-                                                snake_case_to_camel_case(sg["mode"])
-                                            ]
-                                        )
-                                        cook = state.get("cook", {})
-                                        timer = nodes.get("timer", {})
-                                        tp = nodes.get("temperatureProbe")
-                                        raw_stages = json.dumps(cook.get("stages", []))
-
-                                        active_stage_index = None
-                                        for idx, s in enumerate(
-                                            (s for s in cook.get("stages", [])), start=1
-                                        ):
-                                            if s["id"] == cook.get("activeStageId"):
-                                                active_stage_index = idx
-                                                break
-                                        state = APOState(
-                                            sensor=APOSensor(
-                                                mode=state["state"]["mode"],
-                                                firmware_version=state["systemInfo"][
-                                                    "firmwareVersion"
-                                                ],
-                                                nodes=APOSensor.Nodes(
-                                                    cook=APOSensor.Nodes.Cook(
-                                                        seconds_elapsed=cook.get(
-                                                            "secondsElapsed", 0
-                                                        )
-                                                    ),
-                                                    temperature_probe=APOSensor.Nodes.TemperatureProbe(
-                                                        temperature=Temperature(
-                                                            celsius=tp["current"][
-                                                                "celsius"
-                                                            ],
-                                                            fahrenheit=tp["current"][
-                                                                "fahrenheit"
-                                                            ],
-                                                        )
-                                                        if "current" in tp
-                                                        else None,
-                                                        target_temperature=Temperature(
-                                                            celsius=tp["setpoint"][
-                                                                "celsius"
-                                                            ],
-                                                            fahrenheit=tp["setpoint"][
-                                                                "fahrenheit"
-                                                            ],
-                                                        )
-                                                        if "setpoint" in tp
-                                                        else None,
-                                                    )
-                                                    if tp
-                                                    else None,
-                                                    temperature_bulbs=APOSensor.Nodes.TemperatureBulbs(
-                                                        mode=bulbs["mode"],
-                                                        temperature=Temperature(
-                                                            celsius=bulbs[
-                                                                bulbs["mode"]
-                                                            ]["current"]["celsius"],
-                                                            fahrenheit=bulbs[
-                                                                bulbs["mode"]
-                                                            ]["current"]["fahrenheit"],
-                                                        ),
-                                                        target_temperature=Temperature(
-                                                            celsius=bulbs[
-                                                                bulbs["mode"]
-                                                            ]["setpoint"]["celsius"],
-                                                            fahrenheit=bulbs[
-                                                                bulbs["mode"]
-                                                            ]["setpoint"]["fahrenheit"],
-                                                        ),
-                                                        dosed=bulbs["wet"]["dosed"],
-                                                        dose_failed=bulbs["wet"][
-                                                            "doseFailed"
-                                                        ],
-                                                    ),
-                                                    rear_heating=APOSensor.Nodes.HeatingElement(
-                                                        watts=he["rear"]["watts"],
-                                                        on=he["rear"]["on"],
-                                                    ),
-                                                    bottom_heating=APOSensor.Nodes.HeatingElement(
-                                                        watts=he["bottom"]["watts"],
-                                                        on=he["bottom"]["on"],
-                                                    ),
-                                                    top_heating=APOSensor.Nodes.HeatingElement(
-                                                        watts=he["top"]["watts"],
-                                                        on=he["top"]["on"],
-                                                    ),
-                                                    steam_generator=APOSensor.Nodes.SteamGenerator(
-                                                        mode=sg["mode"],
-                                                        relative_humidity=hum.get(
-                                                            "current"
-                                                        ),
-                                                        target_humidity=hum.get(
-                                                            "setpoint", 0
-                                                        ),
-                                                    ),
-                                                    timer=APOSensor.Nodes.Timer(
-                                                        mode=timer.get("mode"),
-                                                        initial=timer.get("initial"),
-                                                        current=timer.get("current"),
-                                                    ),
-                                                    lamp_on=nodes["lamp"]["on"],
-                                                    door_closed=nodes["door"]["closed"],
-                                                    water_tank_empty=nodes["waterTank"][
-                                                        "empty"
-                                                    ],
-                                                    fan_speed=nodes["fan"]["speed"],
-                                                ),
-                                            ),
-                                            stages=APOState.Stages(
-                                                active=active_stage_index,
-                                                count=len(cook.get("stages", [])),
-                                            ),
-                                            raw_stages=raw_stages,
-                                        )
-                                        device_id = payload["cookerId"]
-                                        device = self.devices[device_id]
-                                        device.state = state
+                                        parsed = parse_event_state(data["payload"])
+                                        device = self.devices.get(parsed.cooker_id)
+                                        if device is None:
+                                            device = AnovaPrecisionOven(
+                                                cooker_id=parsed.cooker_id,
+                                                type=parsed.oven_type,
+                                            )
+                                            self.devices[parsed.cooker_id] = device
+                                            for listener in self._listeners:
+                                                await listener.on_new_device(device)
+                                        apply_state(device, parsed)
+                                        state = parsed.state
                                         for listener in self._listeners:
                                             await listener.on_state(device, state)
 
@@ -232,6 +116,7 @@ class AnovaOvenApi:
                                                     device, target
                                                 )
                                         target = current_target
+
                                     case "EVENT_APO_WIFI_LIST":
                                         payload = data.get("payload")
                                         new_devices: list[tuple[str, str]] = [
@@ -263,11 +148,11 @@ class AnovaOvenApi:
                                 _LOGGER.debug(f"Unknown message type: {msg}")
                         await asyncio.sleep(0)
                     except Exception as err:
-                        _LOGGER.exception("Failed processing msg {msg}: {err}")
+                        _LOGGER.exception("Failed processing message: %s", err)
                         self._ws = None
                         raise err
             _LOGGER.info("WS stream closed.")
-            if attempt > 0:
+            if attempt > 0 and not self._should_stop:
                 raise InvalidAuth("Access Token invalid")
 
             if not self._should_stop:

@@ -90,6 +90,27 @@
       },
       "stages_count": {
         "name": "Stages count"
+      },
+      "evaporator_watts": {
+        "name": "Evaporator watts"
+      },
+      "boiler_watts": {
+        "name": "Boiler watts"
+      },
+      "top_usage_hours": {
+        "name": "Top usage hours"
+      },
+      "rear_usage_hours": {
+        "name": "Rear usage hours"
+      },
+      "bottom_usage_hours": {
+        "name": "Bottom usage hours"
+      },
+      "evaporator_usage_hours": {
+        "name": "Evaporator usage hours"
+      },
+      "boiler_usage_hours": {
+        "name": "Boiler usage hours"
       }
     },
     "binary_sensor": {
@@ -127,11 +148,11 @@
         },
         "target_temperature_celsius": {
           "name": "Temperature",
-          "description": "Target temperature. For souce vide mode it limits to 100°C"
+          "description": "Target temperature. For souce vide mode it limits to 100\u00b0C"
         },
         "target_temperature_fahrenheit": {
           "name": "Temperature",
-          "description": "Target temperature. For souce vide mode it limits to 212°F"
+          "description": "Target temperature. For souce vide mode it limits to 212\u00b0F"
         },
         "heating_top": {
           "name": "Heat top",
@@ -164,6 +185,10 @@
         "timer_mode": {
           "name": "Timer starts",
           "description": "When cooking timer starts."
+        },
+        "title": {
+          "name": "Title",
+          "description": "Title of the cook stage."
         }
       }
     },
