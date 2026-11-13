@@ -19,6 +19,8 @@ accepting changes and the oven lamp had no control path: it was exposed only as
   generation (`oven_v1`). The integration detects the oven generation from the
   device list and state payloads and builds the matching cook command, so the
   same release works for both models. See [Oven generations](#oven-generations).
+- A `fan_speed` field on `start_cook` (0-100 %) instead of a hardcoded 100 %.
+  See [Fan speed](#fan-speed).
 
 Everything below is upstream's documentation, still accurate for the rest of
 the component.
@@ -92,6 +94,18 @@ In `steam-percentage` mode the oven reports the requested steam percentage as a
 setpoint but no measured relative humidity. The relative humidity sensor is
 therefore unknown in that mode, while the target humidity sensor carries the
 requested percentage. In `relative-humidity` mode both values are reported.
+
+### Fan speed
+
+`start_cook` accepts `fan_speed` from 0 to 100. A V2 oven only has an
+`off`/`min`/`mid`/`max` fan enum, so the percentage is mapped: 0 becomes `off`,
+up to 33 `min`, up to 66 `mid`, and anything higher `max`.
+
+On a V1 oven the percentage is sent unchanged in the stage, but the oven
+firmware may ignore it and run the fan at full speed. On firmware 2.1.16 a cook
+requested with `fan_speed: 20` was accepted and echoed back with
+`fan.speed: 100` in the returned stage, and the fan sensor read 100 %. Treat the
+setting as advisory on V1 until the firmware honours it.
 
 ## Authentication
 
