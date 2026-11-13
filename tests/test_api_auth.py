@@ -1,5 +1,6 @@
 """Tests for auth-method-specific API behaviour."""
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.anova_oven.api import AnovaOvenApi
@@ -53,6 +54,7 @@ async def test_pat_skips_commands_outside_its_allowlist():
 async def test_pat_sends_allowed_commands():
     api = _api(AUTH_METHOD_PAT)
     api._ws = MagicMock()
+    api._ws.closed = False
 
     async def _resolve(_data):
         api._response_fut.set_result({"status": "ok"})
@@ -98,3 +100,14 @@ def test_pat_has_no_expiry():
     api = _api(AUTH_METHOD_PAT)
     assert api._token_expires_at() is None
     assert api._token_expired() is False
+
+
+async def test_command_fails_when_the_websocket_is_down():
+    from custom_components.anova_oven.exceptions import CommandError
+
+    api = _api(AUTH_METHOD_APP)
+    api._ws = None
+    api._ws_wait_seconds = 0
+
+    with pytest.raises(CommandError, match="Not connected"):
+        await api.send_command(_command("CMD_APO_STOP"))

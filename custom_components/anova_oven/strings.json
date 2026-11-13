@@ -134,7 +134,7 @@
         "name": "Lamp on"
       },
       "door_closed": {
-        "name": "Door closed"
+        "name": "Door"
       },
       "water_tank_empty": {
         "name": "Water tank empty"

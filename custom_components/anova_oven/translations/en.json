@@ -43,7 +43,7 @@
     "entity": {
         "binary_sensor": {
             "door_closed": {
-                "name": "Door closed"
+                "name": "Door"
             },
             "lamp_on": {
                 "name": "Lamp on"

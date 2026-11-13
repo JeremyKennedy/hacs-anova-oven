@@ -74,6 +74,12 @@ class AnovaOvenSwitch(AnovaOvenDescriptionEntity, SwitchEntity):
                 ),
             )
         )
+        # The oven acknowledges the command but does not always publish the new
+        # lamp state, so reflect the accepted change until it reports again.
+        device = self.coordinator.devices.get(self.cooker_id)
+        if device and device.state and device.state.sensor.nodes:
+            device.state.sensor.nodes.lamp_on = on
+            self.coordinator.async_set_updated_data(device.state)
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the lamp on."""

@@ -57,6 +57,7 @@ class AnovaOvenApi:
         self._ws: ClientWebSocketResponse | None = None
         self._response_fut: asyncio.Future | None
         self._target: Target | None = None
+        self._ws_wait_seconds = 10
         self.unit_of_temperature = unit_of_temperature
 
     def add_listener(self, listener: "AnovaOvenUpdateListener"):
@@ -271,17 +272,22 @@ class AnovaOvenApi:
                 command.command,
             )
             return
-        if self._ws:
-            data = dict_keys_to_camel_case(to_dict(command))
-            _LOGGER.info(json.dumps(data))
-            self._response_fut = asyncio.Future()
-            await self._ws.send_json(data)
-            try:
-                res = await asyncio.wait_for(self._response_fut, timeout=10)
-            finally:
-                self._response_fut = None
-            if res and res.get("status") == "error":
-                raise CommandError(res.get("error", "Unknown error"))
+        if self._ws is None or self._ws.closed:
+            deadline = time.monotonic() + self._ws_wait_seconds
+            while (self._ws is None or self._ws.closed) and time.monotonic() < deadline:
+                await asyncio.sleep(0.2)
+        if self._ws is None or self._ws.closed:
+            raise CommandError("Not connected to the oven")
+        data = dict_keys_to_camel_case(to_dict(command))
+        _LOGGER.info(json.dumps(data))
+        self._response_fut = asyncio.Future()
+        await self._ws.send_json(data)
+        try:
+            res = await asyncio.wait_for(self._response_fut, timeout=10)
+        finally:
+            self._response_fut = None
+        if res and res.get("status") == "error":
+            raise CommandError(res.get("error", "Unknown error"))
 
 
 class AnovaOvenUpdateListener(ABC):
