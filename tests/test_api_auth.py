@@ -62,3 +62,39 @@ async def test_pat_sends_allowed_commands():
     await api.send_command(_command("CMD_APO_STOP"))
 
     api._ws.send_json.assert_called_once()
+
+
+def _jwt(exp: int) -> str:
+    import base64
+    import json
+
+    def _part(value: dict) -> str:
+        raw = json.dumps(value).encode()
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    return f"{_part({'alg': 'none'})}.{_part({'exp': exp})}.signature"
+
+
+def test_app_token_expiry_is_detected():
+    import time
+
+    expired = AnovaOvenApi(
+        session=None,
+        app_key="app-key",
+        access_token=_jwt(int(time.time()) - 60),
+        refresh_token="refresh-token",
+    )
+    valid = AnovaOvenApi(
+        session=None,
+        app_key="app-key",
+        access_token=_jwt(int(time.time()) + 3600),
+        refresh_token="refresh-token",
+    )
+    assert expired._token_expired() is True
+    assert valid._token_expired() is False
+
+
+def test_pat_has_no_expiry():
+    api = _api(AUTH_METHOD_PAT)
+    assert api._token_expires_at() is None
+    assert api._token_expired() is False
