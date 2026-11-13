@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 import time
@@ -61,6 +62,21 @@ class AnovaOvenApi:
     def add_listener(self, listener: "AnovaOvenUpdateListener"):
         self._listeners.append(listener)
 
+    def _token_expires_at(self) -> float | None:
+        """Return the JWT expiry of the access token, if it is a JWT."""
+        try:
+            payload = self.access_token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            return float(claims["exp"])
+        except (IndexError, KeyError, TypeError, ValueError):
+            return None
+
+    def _token_expired(self) -> bool:
+        """Return whether the access token is expired or about to expire."""
+        expires_at = self._token_expires_at()
+        return expires_at is not None and expires_at <= time.time() + 60
+
     def _websocket_url(self) -> str:
         """Build the websocket URL for the configured auth method."""
         url = (
@@ -78,6 +94,8 @@ class AnovaOvenApi:
         attempt = 0
 
         while not self._should_stop:
+            if self.auth_method == AUTH_METHOD_APP and self._token_expired():
+                await self.renew_token()
             url = self._websocket_url()
             headers = {
                 "Sec-WebSocket-Protocol": "ANOVA_V2",
