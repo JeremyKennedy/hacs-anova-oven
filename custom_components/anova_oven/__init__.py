@@ -23,7 +23,9 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import AnovaOvenApi
 from .const import (
+    AUTH_METHOD_APP,
     CONF_APP_KEY,
+    CONF_AUTH_METHOD,
     CONF_REFRESH_TOKEN,
     DOMAIN,
     AnovaUnitOfTemperature,
@@ -62,13 +64,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ]
     api = AnovaOvenApi(
         session=aiohttp_client.async_get_clientsession(hass),
-        app_key=data[CONF_APP_KEY],
+        app_key=data.get(CONF_APP_KEY, ""),
         access_token=data[CONF_ACCESS_TOKEN],
-        refresh_token=data[CONF_REFRESH_TOKEN],
+        refresh_token=data.get(CONF_REFRESH_TOKEN, ""),
         existing_devices=devices,
         unit_of_temperature=data.get(
             CONF_TEMPERATURE_UNIT, AnovaUnitOfTemperature.CELSIUS
         ),
+        auth_method=data.get(CONF_AUTH_METHOD, AUTH_METHOD_APP),
     )
     coordinator = AnovaCoordinator(api=api, hass=hass, entry=entry, devices=devices)
     await coordinator.async_setup()

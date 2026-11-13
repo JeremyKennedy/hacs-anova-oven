@@ -2,10 +2,26 @@
   "config": {
     "step": {
       "user": {
+        "menu_options": {
+          "app": "Anova account (full control)",
+          "pat": "Personal access token (start/stop only)"
+        }
+      },
+      "app": {
+        "title": "Anova account",
+        "description": "Uses the Anova app credentials (app key, access token and refresh token) and can send every command, including the lamp switch.",
         "data": {
           "app_key": "[%key:common::config_flow::data::api_key%]",
           "access_token": "[%key:common::config_flow::data::access_token%]",
           "refresh_token": "Refresh token",
+          "temperature_unit": "Temperature unit"
+        }
+      },
+      "pat": {
+        "title": "Personal access token",
+        "description": "Anova limits personal access tokens to start/stop and temperature unit, so the lamp switch is not created.",
+        "data": {
+          "access_token": "Personal access token",
           "temperature_unit": "Temperature unit"
         }
       }
@@ -24,9 +40,6 @@
       "init": {
         "title": "Configure Anova Oven",
         "data": {
-          "app_key": "[%key:common::config_flow::data::api_key%]",
-          "access_token": "[%key:common::config_flow::data::access_token%]",
-          "refresh_token": "Refresh token",
           "temperature_unit": "Temperature unit"
         }
       }
@@ -154,11 +167,11 @@
         },
         "target_temperature_celsius": {
           "name": "Temperature",
-          "description": "Target temperature. For souce vide mode it limits to 100\u00b0C"
+          "description": "Target temperature. For souce vide mode it limits to 100°C"
         },
         "target_temperature_fahrenheit": {
           "name": "Temperature",
-          "description": "Target temperature. For souce vide mode it limits to 212\u00b0F"
+          "description": "Target temperature. For souce vide mode it limits to 212°F"
         },
         "heating_top": {
           "name": "Heat top",

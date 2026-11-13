@@ -9,7 +9,7 @@ from homeassistant.components.switch import SwitchEntity, SwitchEntityDescriptio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import AUTH_METHOD_PAT, DOMAIN
 from .coordinator import AnovaCoordinator
 from .entity import AnovaOvenDescriptionEntity
 from .precision_oven import APOCommand
@@ -30,6 +30,9 @@ async def async_setup_entry(
 ) -> None:
     """Set up Anova device."""
     coordinator: AnovaCoordinator = hass.data[DOMAIN][entry.entry_id]
+    if coordinator.api.auth_method == AUTH_METHOD_PAT:
+        # Personal access tokens cannot send CMD_APO_SET_LAMP.
+        return
     async_add_entities(
         AnovaOvenSwitch(device[0], coordinator, description)
         for device in coordinator.devices.items()
