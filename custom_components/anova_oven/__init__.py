@@ -181,6 +181,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 timer["hours"] * 3600 + timer["minutes"] * 60 + timer["seconds"]
             )
 
+        fan_speed = call.data.get("fan_speed")
+        fan_speed = 100 if fan_speed is None else int(fan_speed)
+        if not 0 <= fan_speed <= 100:
+            raise ValueError("Fan speed must be between 0 and 100 percent.")
+
         parameters = CookParameters(
             cooker_id=cook_id,
             target_temperature_celsius=target_temperature_celsius,
@@ -195,6 +200,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             timer_seconds=timer_seconds,
             timer_mode=call.data.get("timer_mode"),
             title=call.data.get("title") or "",
+            fan_speed=fan_speed,
         )
         await api.send_command(
             APOCommand(

@@ -139,3 +139,29 @@ def test_custom_cook_v2_passes_raw_stages():
     payload = build_custom_cook_payload("01234", OVEN_V2, json.dumps(stages))
     assert payload.stages == stages
     assert payload.type == "oven_v2"
+
+
+def test_v1_fan_speed_is_passed_through():
+    payload = build_start_payload(_parameters(fan_speed=55), OVEN_V1)
+    assert payload.stages[-1].fan.speed == 55
+
+
+def test_v2_fan_speed_maps_to_enum():
+    cases = {
+        0: "off",
+        20: "min",
+        33: "min",
+        34: "mid",
+        66: "mid",
+        67: "max",
+        100: "max",
+    }
+    for percent, expected in cases.items():
+        payload = build_start_payload(_parameters(fan_speed=percent), OVEN_V2)
+        assert payload.stages[0].do.fan.speed == expected
+
+
+def test_v2_fan_speed_serializes_as_enum():
+    payload = build_start_payload(_parameters(fan_speed=100), OVEN_V2)
+    serialized = dict_keys_to_camel_case(to_dict(payload))
+    assert serialized["stages"][0]["do"]["fan"] == {"speed": "max"}

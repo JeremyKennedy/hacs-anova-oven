@@ -66,6 +66,15 @@ start_cook:
           min: 0
           max: 100
           mode: slider
+    fan_speed:
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
     timer:
       required: false
       selector:
