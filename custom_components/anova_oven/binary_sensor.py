@@ -1,19 +1,18 @@
-"""Support for Anova Sensors."""
+"""Support for Anova binary sensors."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import StrEnum, auto
 
 from homeassistant import config_entries
-from homeassistant.components.sensor import (
-    SensorEntity,
-    SensorEntityDescription,
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import StateType
 
 from .const import DOMAIN
 from .coordinator import AnovaCoordinator
@@ -21,61 +20,55 @@ from .entity import AnovaOvenDescriptionEntity
 from .precision_oven import OVEN_V1, OVEN_V2, APOState
 
 
-class FormatType(StrEnum):
-    OnOff = auto()
-    YesNo = auto()
-
-
 @dataclass(frozen=True)
 class AnovaOvenBinarySensorEntityDescriptionMixin:
-    """Describes the mixin variables for anova sensors."""
+    """Describes the mixin variables for anova binary sensors."""
 
-    format_type: FormatType
     value_fn: Callable[[APOState], bool]
 
 
 @dataclass(frozen=True)
 class AnovaOvenBinarySensorEntityDescription(
-    SensorEntityDescription, AnovaOvenBinarySensorEntityDescriptionMixin
+    BinarySensorEntityDescription, AnovaOvenBinarySensorEntityDescriptionMixin
 ):
-    """Describes a Anova binary sensor."""
+    """Describes an Anova binary sensor."""
 
 
-SENSOR_DESCRIPTIONS: list[SensorEntityDescription] = [
+SENSOR_DESCRIPTIONS: list[AnovaOvenBinarySensorEntityDescription] = [
     AnovaOvenBinarySensorEntityDescription(
         key="sous_vide",
         translation_key="sous_vide",
-        format_type=FormatType.OnOff,
+        device_class=BinarySensorDeviceClass.RUNNING,
         value_fn=lambda data: data.sensor.nodes.temperature_bulbs.mode == "wet",
     ),
     AnovaOvenBinarySensorEntityDescription(
         key="lamp_on",
         translation_key="lamp_on",
-        format_type=FormatType.OnOff,
+        device_class=BinarySensorDeviceClass.LIGHT,
         value_fn=lambda data: data.sensor.nodes.lamp_on,
     ),
     AnovaOvenBinarySensorEntityDescription(
         key="door_closed",
         translation_key="door_closed",
-        format_type=FormatType.YesNo,
-        value_fn=lambda data: data.sensor.nodes.door_closed,
+        device_class=BinarySensorDeviceClass.DOOR,
+        value_fn=lambda data: not data.sensor.nodes.door_closed,
     ),
     AnovaOvenBinarySensorEntityDescription(
         key="water_tank_empty",
         translation_key="water_tank_empty",
-        format_type=FormatType.YesNo,
+        device_class=BinarySensorDeviceClass.PROBLEM,
         value_fn=lambda data: data.sensor.nodes.water_tank_empty,
     ),
     AnovaOvenBinarySensorEntityDescription(
         key="exhaust_vent_open",
         translation_key="exhaust_vent_open",
-        format_type=FormatType.YesNo,
+        device_class=BinarySensorDeviceClass.OPENING,
         value_fn=lambda data: data.sensor.nodes.vent_open,
     ),
     AnovaOvenBinarySensorEntityDescription(
         key="waste_water_tank_full",
         translation_key="waste_water_tank_full",
-        format_type=FormatType.YesNo,
+        device_class=BinarySensorDeviceClass.PROBLEM,
         value_fn=lambda data: data.sensor.nodes.waste_water_full,
     ),
 ]
@@ -97,19 +90,15 @@ async def async_setup_entry(
     )
 
 
-class AnovaOvenBinarySensor(AnovaOvenDescriptionEntity, SensorEntity):
-    """A sensor using Anova coordinator."""
+class AnovaOvenBinarySensor(AnovaOvenDescriptionEntity, BinarySensorEntity):
+    """A binary sensor using the Anova coordinator."""
 
     entity_description: AnovaOvenBinarySensorEntityDescription
 
     @property
-    def native_value(self) -> StateType:
-        """Return the state."""
-        if state := self.coordinator.devices[self.cooker_id].state:
-            is_on = self.entity_description.value_fn(state)
-            match self.entity_description.format_type:
-                case FormatType.OnOff:
-                    return "on" if is_on else "off"
-                case FormatType.YesNo:
-                    return "yes" if is_on else "no"
+    def is_on(self) -> bool | None:
+        """Return true when the sensor is on."""
+        device = self.coordinator.devices.get(self.cooker_id)
+        if device and device.state and device.state.sensor.nodes:
+            return self.entity_description.value_fn(device.state)
         return None
