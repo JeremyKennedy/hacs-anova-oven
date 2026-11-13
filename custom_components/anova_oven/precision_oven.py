@@ -75,6 +75,8 @@ class APOSensor:
         fan_speed: int | str
         evaporator: SteamGeneratorType | None = None
         boiler: SteamGeneratorType | None = None
+        vent_open: bool | None = None
+        waste_water_full: bool | None = None
 
     mode: str
     firmware_version: str

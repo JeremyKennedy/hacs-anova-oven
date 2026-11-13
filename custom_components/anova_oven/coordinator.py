@@ -33,7 +33,7 @@ class AnovaCoordinator(DataUpdateCoordinator[APOState], AnovaOvenUpdateListener)
             name="Anova Precision Oven",
             logger=_LOGGER,
         )
-        assert self.config_entry is not None
+        self.config_entry = entry
         api.add_listener(self)
         self.api: AnovaOvenApi = api
         self.hass: HomeAssistant = hass

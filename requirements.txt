@@ -1,5 +1,6 @@
 colorlog==6.9.0
 homeassistant==2024.3.3
 pip>=24.0,<25.0
-pytest==8.3.4
+pytest==8.0.2
+pytest-homeassistant-custom-component==0.13.109
 ruff==0.9.1

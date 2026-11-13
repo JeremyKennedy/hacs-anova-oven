@@ -18,7 +18,7 @@ from homeassistant.helpers.typing import StateType
 from .const import DOMAIN
 from .coordinator import AnovaCoordinator
 from .entity import AnovaOvenDescriptionEntity
-from .precision_oven import APOSensor
+from .precision_oven import OVEN_V1, OVEN_V2, APOState
 
 
 class FormatType(StrEnum):
@@ -31,7 +31,7 @@ class AnovaOvenBinarySensorEntityDescriptionMixin:
     """Describes the mixin variables for anova sensors."""
 
     format_type: FormatType
-    value_fn: Callable[[APOSensor], bool]
+    value_fn: Callable[[APOState], bool]
 
 
 @dataclass(frozen=True)
@@ -66,6 +66,18 @@ SENSOR_DESCRIPTIONS: list[SensorEntityDescription] = [
         format_type=FormatType.YesNo,
         value_fn=lambda data: data.sensor.nodes.water_tank_empty,
     ),
+    AnovaOvenBinarySensorEntityDescription(
+        key="exhaust_vent_open",
+        translation_key="exhaust_vent_open",
+        format_type=FormatType.YesNo,
+        value_fn=lambda data: data.sensor.nodes.vent_open,
+    ),
+    AnovaOvenBinarySensorEntityDescription(
+        key="waste_water_tank_full",
+        translation_key="waste_water_tank_full",
+        format_type=FormatType.YesNo,
+        value_fn=lambda data: data.sensor.nodes.waste_water_full,
+    ),
 ]
 
 
@@ -80,6 +92,8 @@ async def async_setup_entry(
         AnovaOvenBinarySensor(device[0], coordinator, description)
         for device in coordinator.devices.items()
         for description in SENSOR_DESCRIPTIONS
+        if description.key != "waste_water_tank_full"
+        or (device[1].type or OVEN_V1) == OVEN_V2
     )
 
 

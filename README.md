@@ -86,6 +86,13 @@ A V2 oven only reports temperatures in Celsius, so the Fahrenheit values are
 derived. `start_custom_cook` accepts the stage array exactly as reported in the
 `raw_stages` attribute of the mode sensor for the oven that produced it.
 
+### Humidity readings
+
+In `steam-percentage` mode the oven reports the requested steam percentage as a
+setpoint but no measured relative humidity. The relative humidity sensor is
+therefore unknown in that mode, while the target humidity sensor carries the
+requested percentage. In `relative-humidity` mode both values are reported.
+
 ## Configuration is done in the UI
 
 Before do configuration you will need to get access tokens for Anova api.
